@@ -1,0 +1,263 @@
+;This Optimization code is written by Nazanin for PhD dissertation in 2018 under supervision of Prof. Chaitra Gopalappa using Reinforcement Learning techniques.
+;This is a Finite Horizon Q-learning (look-up table) to find the best strategy in each state-stage pairs:
+
+
+
+extensions [matrix]
+
+
+
+to Optimization
+;; Step 1
+  
+  ;; The statespace have been updated to 
+  ;; [CD4diag_HET CD4diag_MSM VLS_HET VLS_MSM]
+  let l 5 * 5 * 10 * 10
+  ;; actionspace
+  ;; [VLS_HET VLS_MSM Testing_HET Testing_MSM]
+  let u 6 * 6 * 3 * 3
+  ;; stage size 
+  ;; each stage is equivalent to transitioning from one year to another.
+  let stagemax 55
+ ;; initialize Q-matrix  
+  let Q matrix:make-constant (l * (stagemax + 1)) u 0 
+  let k 0
+  let kmax 10 
+  let lambda 0.8
+  let A 5
+  let B 10
+
+    
+  let VLS_HET_range [0 0.1 0.2 0.3 0.4 0.5 0.6 0.7 0.8 0.9]  ;; Go to 100% or not?
+  let VLS_MSM_range [0 0.1 0.2 0.3 0.4 0.5 0.6 0.7 0.8 0.9]  
+  
+  ;; Step 2
+  ;; Declarying the initial state
+  
+  import-world "World-Results-dry-run-2.csv"
+
+  
+  let CD4diag_HET median [CD4-diagnosis] of people with [infected? = true and dead = 0 and (sex = 1 or sex = 2) and stage >= 3]  ;;why median and not mean
+  let CD4diag_MSM median [CD4-diagnosis] of people with [infected? = true and dead = 0 and sex = 3 and stage >= 3]
+ 
+  ;; round values of CD4 to some range
+ 
+  let Step 10
+  ;; (HET diagnosed with HIV with VLS) / (HET diagnosed with HIV)
+  let VLS_HET count people with [infected? = true and dead = 0 and (sex = 1 or sex = 2) and stage = 6] / (count people with [infected? = true and dead = 0 and (sex = 1 or sex = 2) and stage >= 3]) 
+  set VLS_HET round (VLS_HET * Step) / Step
+  let propHET-Fdiag (count people with [infected? = true and dead = 0 and sex = 1  and stage >= 3]) / (count people with [infected? = true and dead = 0 and sex = 1 and stage >= 1])
+  ;print propHET-Fdiag
+  
+  let propHET-Mdiag (count people with [infected? = true and dead = 0 and sex = 2  and stage >= 3]) / (count people with [infected? = true and dead = 0 and sex = 2 and stage >= 1])
+  ;print propHET-Mdiag
+  
+  
+  
+  
+  ;; (MSM diagnosed with HIV with VLS) / (MSM diagnosed with HIV)
+  let VLS_MSM count people with [infected? = true and dead = 0 and sex = 3 and stage = 6] / (count people with [infected? = true and dead = 0 and sex = 3 and stage >= 3])
+  set VLS_MSM round (VLS_MSM * Step) / Step
+  let propMSMdiag (count people with [infected? = true and dead = 0 and sex = 3 and stage >= 3]) / (count people with [infected? = true and dead = 0 and sex = 3 and stage >= 1])
+  print propMSMdiag
+
+  let initialstate (list (CD4diag_HET) (CD4diag_MSM) (VLS_HET) (VLS_MSM))
+;  print CD4diag_HET
+;  print CD4diag_MSM
+;  print VLS_HET
+;  print VLS_MSM  
+;  print initialstate
+;  
+  let CurrentState initialstate
+  
+  set QlearningStage 1
+end
+
+  
+  while [k <= kmax]
+  
+  random-seed random 10000
+  let VLS_action [40 45 50 55 60 65]
+  let unaware [10 15 20]
+  
+  let i random length VLS_action
+  let action-ARTsuppressed_HET item i VLS_action 
+;  print i
+  
+  let j random length VLS_action
+  let action-ARTsuppressed_MSM item j VLS_action
+ ; print j
+  
+  let v random length unaware
+  let action-unaware_HET item v unaware
+;  print v
+  
+  let w random length unaware
+  let action-unaware_MSM item w unaware
+;  print w
+ 
+  let CurrentAction (list (action-ARTsuppressed_HET) (action-ARTsuppressed_MSM) (action-unaware_HET) (action-unaware_MSM))
+  print CurrentAction
+  
+  
+  
+  ;; Declarying the the element of Q matrix by finding the state-stage index and action index 
+  ;CD4position ;; gives the CD4diag_HET_index and CD4diag_MSM_index
+  
+  
+ifelse CD4diag_HET < 500 
+  [ifelse CD4diag_HET < 351
+    [ifelse CD4diag_HET < 201
+      [ifelse CD4diag_HET < 50
+        [set CD4diag_HET_index 0]
+        [set CD4diag_HET_index 1]]
+      [set CD4diag_HET_index 2]]
+    [set CD4diag_HET_index 3]]
+  [set CD4diag_HET_index 4]     
+    
+  ifelse CD4diag_MSM < 500
+   [ifelse CD4diag_MSM < 351
+    [ifelse CD4diag_MSM < 201
+      [ifelse CD4diag_MSM < 50
+        [set CD4diag_MSM_index 0]
+        [set CD4diag_MSM_index 1]]
+      [set CD4diag_MSM_index 2]]
+    [set CD4diag_MSM_index 3]]
+  [set CD4diag_MSM_index 4]
+  
+;  print CD4diag_HET_index
+;  print CD4diag_MSM_index
+
+  
+  
+  
+  let VLS_HET_index position VLS_HET VLS_HET_range ;; gives the VLS_HET_index
+  let VLS_MSM_index position VLS_MSM VLS_MSM_range ;; gives the VLS_MSM_index
+  
+;  print VLS_HET_index
+;  print VLS_MSM_index
+  
+  
+  
+  let CurrentStateIndex (CD4diag_HET_index * 5 * 10 * 10) + (CD4diag_MSM_index * 10 * 10) + (VLS_HET_index * 10) + (VLS_MSM_index) + 1 + (QlearningStage - 1) * l ;; gives the row of Qmatrix
+  let CurrentActionIndex (i * 6 * 3 * 3) + (j * 3 * 3) + (v * 3) + (w) + 1 ;; gives the column of the Qmatrix
+
+;  print CurrentStateIndex
+;  print CurrentActionIndex
+  
+  let populationQALY sum [QALYs] of people with [infected? = true and dead = 0 and sex >= 1 and stage >= 1] ;; should be infected or all population?
+  let populationCosts sum [costs] of people with [infected? = true and dead = 0 and sex >= 1 and stage >= 1]
+;  ;print QALYs
+end
+  
+    ifelse QlearningStage = stagemax + 1
+      [set QlearningStage 1    ;; if s = 1 start from initial state and take action, and do the simulation 
+      let CurrentState initialstate 
+      repeat 12 [go]  
+      simulation]
+      [repeat 12 [go]
+        simulation]
+  
+ ;; Step 4 
+ ;; Best Strategy should be taken
+  
+end    
+
+
+
+
+     
+  
+end
+to simulation    
+  ;; Define QALY and cost
+  sum QALYs of people
+  
+  let PopulationQALY QALYs 
+  let PopulationCosts costs  
+  let GDP 
+  
+  let immediatereward (PopulationQALY * GDP) + PopulationCosts
+   let immediatereward PopulationQALY + PopulationCosts
+  
+  let CD4diag_HET median [CD4-diagnosis] of people with [infected? = true and dead = 0 and (sex = 1 or sex = 2) and stage >= 3]
+  let CD4diag_MSM median [CD4-diagnosis] of people with [infected? = true and dead = 0 and sex = 3 and stage >= 3]
+  
+  
+  let VLS_HET count people with [infected? = true and dead = 0 and (sex = 1 or sex = 2) and stage = 6] / (count people with [infected? = true and dead = 0 and (sex = 1 or sex = 2) and stage >= 3]) 
+  set VLS_HET round (VLS_HET / StateSpaceStep) * StateSpaceStep
+  
+  let VLS_MSM count people with [infected? = true and dead = 0 and sex = 3 and stage = 6] / (count people with [infected? = true and dead = 0 and sex = 3 and stage >= 3])
+  set VLS_MSM round (VLS_MSM / StateSpaceStep) * StateSpaceStep
+  
+  let TransitionState (list (CD4diag_HET) (CD4diag_MSM) (VLS_HET) (VLS_MSM))  
+       
+       
+  ;; Step 3
+  CD4position
+  
+  ifelse CD4diag_HET < 500 
+  [ifelse CD4diag_HET < 351
+    [ifelse CD4diag_HET < 201
+      [ifelse CD4diag_HET < 50
+        [set CD4diag_HET_index 0]
+        [set CD4diag_HET_index 1]]
+      [set CD4diag_HET_index 2]]
+    [set CD4diag_HET_index 3]]
+  [set CD4diag_HET_index 4]     
+    
+  ifelse CD4diag_MSM < 500
+  [ifelse CD4diag_MSM < 351
+    [ifelse CD4diag_MSM < 201
+      [ifelse CD4diag_MSM < 50
+        [set CD4diag_MSM_index 0]
+        [set CD4diag_MSM_index 1]]
+      [set CD4diag_MSM_index 2]]
+    [set CD4diag_MSM_index 3]]
+  [set CD4diag_MSM_index 4]
+  
+  
+  let VLS_HET_index position VLS_HET VLS_HET_range
+  let VLS_MSM_index position VLS_MSM VLS_MSM_range    
+  
+  
+ ;; equation to calculate the state index transition
+  let stateIndexTransition (CD4diag_HET_index * 5 * 10 * 10) + (CD4diag_MSM_index * 10 * 10) + (VLS_HET_index * 10) + (VLS_MSM_index) + 1 + (QlearningStage - 1) * l
+  
+  ;; Maybe for updating the Q see if we are in s+1 Q = 0 else update Q    
+  let Qnext max matrix:get-row Q stateIndexTransition 
+  let Qnext max Q row TransitionState 
+  matrix:set Q CurrentStateIndex CurrentActionIndex (1 - LearningRate) * Q + LearningRate * (ImmediateReward + lambda * Qnext)
+; or matrix:set-and-report matrix row-i col-j new-value
+  set CurrentState TransitionState 
+  let k k+1 
+  set QlearningStage QlearningStage+1    
+end
+
+
+
+
+
+
+to CD4position
+  ifelse CD4diag_HET < 500 
+  [ifelse CD4diag_HET < 351
+    [ifelse CD4diag_HET < 201
+      [ifelse CD4diag_HET < 50
+        [set CD4diag_HET_index 0]
+        [set CD4diag_HET_index 1]]
+      [set CD4diag_HET_index 2]]
+    [set CD4diag_HET_index 3]]
+  [set CD4diag_HET_index 4]     
+    
+  ifelse CD4diag_MSM < 500
+  [ifelse CD4diag_MSM < 351
+    [ifelse CD4diag_MSM < 201
+      [ifelse CD4diag_MSM < 50
+        [set CD4diag_MSM_index 0]
+        [set CD4diag_MSM_index 1]]
+      [set CD4diag_MSM_index 2]]
+    [set CD4diag_MSM_index 3]]
+  [set CD4diag_MSM_index 4]
+end 
+;

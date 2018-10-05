@@ -1,0 +1,90 @@
+
+extensions [matrix]
+
+to Q-learning
+  ;; step 1
+  
+  ;; statespace and actionspace size  
+  let l 20 * 20 * 5 * 5 * 20 * 20 ;; Ask Prof. C if we should define all the stateswith time step 5
+  let u 6 * 6 * 3 * 3
+  ;; initialize 
+  x  
+  let Q matrix: make-zero l u  ;; if it is counted from 0 maybe u-1 & l-1  
+
+  let k 0
+  let kmax 10000000
+
+  while [k<kmax]
+  [
+  
+    ; randomly select a state
+    ; let prev_HET_index random 5
+    ; let prev_MSM_index random 5
+    ; let CD4diag_HET_index random 5
+    ; let CD4diag_MSM_index random 5
+    ; let VLS_HET_index random 5
+    ; let VLS_HET_index random 5 
+    ; 
+    ;   set  CurrentState [item [prev_HET_index] prev_HET and item [prev_MSM_index] prev_MSM and item [CD4diag_HET_index] CD4diag_HET and item [CD4diag_MSM_index] 
+    ;     CD4diag_MSM and item [VLS_HET_index] VLS_HET and item [VLS_HET_index] VLS_HET]
+    ;   
+    ; ; randomly select an action
+    ; let VLS_HET_index random 5
+    ; let VLS_MSM_index random 5 
+    ; let unaware_HET_index random 3   
+    ; let unaware_MSM_index random 3  
+    ;   
+    ;   set  action [item [VLS_HET_index] VLS_HET and item [VLS_MSM_index] VLS_MSM and item [unaware_HET_index] unaware_HET and item [unaware_MSM_index] 
+    ;     unaware_MSM]
+    ; ;;set Q matrix [current-state] [current-action] =   1-alpha
+    ; ;;]
+    ; 
+    ; 
+initialState
+initialAction   
+go
+Immediate_Reward   
+  
+end
+
+ 
+
+to initialState
+  ;; randomle select a state 
+  let prev_HET random 20 * 5
+  let prev_MSM random 20 * 5
+
+  let CD4diag_HET random 900
+  let CD4diag_MSM random 900
+  
+  let VLS_HET random 20 * 5
+  let VLS_MSM random 20 * 5
+  
+  set CurrentState [prev_HET prev_MSM CD4diag_HET CD4diag_MSM VLS_HET VLS_MSM] 
+end
+
+;randomly select an action
+to initialAction
+  let VLS_action [40 45 50 55 60 65]
+  let unaware [10 15 20]
+  
+  let i random length VLS_action
+  let action-ARTsuppressed_HET item i VLS_action 
+  
+  let j random length VLS_action
+  let action-ARTsuppressed_MSM item j VLS_action
+  
+  let v random length unaware
+  let action-unaware_HET item v unaware
+  
+  let w random length unaware
+  let action-unaware_MSM item w unaware
+ 
+  set currentAction [action-ARTsuppressed_HET  action-ARTsuppressed_MSM action-unaware_HET action-unaware_MSM]
+end
+
+to Immediate_Reward
+  set ImmediateReward sum-QALYs * GDP - TOTAL-COSTS
+end
+
+
