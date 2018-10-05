@@ -1,3 +1,5 @@
+//comment delete later//
+
 ;; Modifications to model compared to Model assignment 1- PART E
 ;;Added Globals: 1) Num-Contacts-Distribution; 2) Contacts-mixing-matrix 3) Population-Age-Distribution 4) lower-bound-Age
 ;;Added turtle-own: 1) age 2) contacts by age
