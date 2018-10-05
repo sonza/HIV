@@ -1,4 +1,3 @@
-//comment i
 clear;
 clc;
 
