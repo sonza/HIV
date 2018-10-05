@@ -1,0 +1,180 @@
+;This Optimization code is written by Nazanin at 2018 using Reinforcement Learning techniques.
+;Q-learning (look-up table) to find the best strategy in each state:
+
+extensions [matrix]
+globals []
+
+
+to RL-Optimization-Algorithm ;;  maybe add a button in interface called RLOptAlg
+  ;; step 1
+  
+  ;; statespace and actionspace size 
+  ;; [prev_HET prev_MSM CD4diag_HET CD4diag_MSM VLS_HET VLS_MSM] 
+  let l 10 * 10 * 5 * 5 * 10 * 10 ;; Ask Prof. C if we should define all the states with time step 5 it will be 4 million!, with time step 10 250,000.
+  let u 6 * 6 * 3 * 3
+  ;; initialize Q-matrix  
+  let Q matrix:make-constant l u 0 
+  let k 0
+  let kmax 10000000 ;; should be increased if statespace size is 4 million
+  let lambda 0.8
+  let A 5
+  let B 10
+  
+  ;;; define range of possible values for each element of state space
+  let prev_HET_range [0 0.1 0.2 0.3 0.4 0.5 0.6 0.7 0.8 0.9] 
+  let prev_MSM_range [0 0.1 0.2 0.3 0.4 0.5 0.6 0.7 0.8 0.9]
+    
+  let VLS_HET_range [0 0.1 0.2 0.3 0.4 0.5 0.6 0.7 0.8 0.9]
+  let VLS_MSM_range [0 0.1 0.2 0.3 0.4 0.5 0.6 0.7 0.8 0.9]
+  
+  
+  initialState   ;;only once selected in the first iteration after that i = j 
+  while [k < kmax]  ;; if want to stochasticly randomly choose the state maybe use if mod 1000 0 randomly else from simulation
+  [
+ let LearningRate A / (B + k)   
+initialAction
+    
+go
+    
+ImmediateReward   
+    
+getTransitionState
+
+;; Calculating the index of transition state in the Q matrix using equation below:
+    
+let prev_HET_index position prev_HET prev_HET_range 
+let prev_MSM_index position prev_MSM prev_MSM_range
+
+ifelse CD4diag_HET < 500 
+[ifelse CD4diag_HET < 351
+  [ifelse CD4diag_HET < 201
+    [ifelse CD4diag_HET < 50
+      [let CD4diag_HET_index 0]
+      [let CD4diag_HET_index 1]]
+    [let CD4diag_HET_index 2]]
+  [let CD4diag_HET_index 3]]
+[let CD4diag_HET_index 4]     
+    
+ifelse CD4diag_MSM < 500
+[ifelse CD4diag_MSM < 351
+  [ifelse CD4diag_MSM < 201
+    [ifelse CD4diag_MSM < 50
+      [let CD4diag_MSM_index 0]
+      [let CD4diag_MSM_index 1]]
+    [let CD4diag_MSM_index 2]]
+  [let CD4diag_MSM_index 3]]
+[let CD4diag_MSM_index 4]
+
+let VLS_HET_index position VLS_HET VLS_HET_range
+let VLS_MSM_index position VLS_MSM VLS_MSM_range    
+    
+  
+let row-TransitionState (prev_HET_index * 10 * 5 * 5 * 10 * 10) + (prev_MSM_index * 5 * 5 * 10 * 10) +
+                        (CD4diag_HET_index * 5 * 10 * 10) + (CD4diag_MSM_index * 10 * 10) + (VLS_HET_index * 10) + (VLS_MSM_index) + 1
+    
+let Qnext max matrix:get-row Q row-TransitionState 
+;let Qnext max Q row TransitionState 
+matrix:set Q CurrentState CurrentAction (1 - LearningRate) * Q + LearningRate * (ImmediateReward + lambda * Qnext)
+;; or matrix:set-and-report matrix row-i col-j new-value
+set CurrentState TransitionState 
+let k k+1   
+  ]
+; action associated with maximum Q-factor in each state 
+;matrix:to-row-list Q  
+;let BestStrategy max matrix:get-row Q 0 : l 
+  
+end
+
+ 
+
+to initialState
+  ;; randomle select a state 
+  let prev_HET random 10 * 10 / 100 
+  set prev_HET_index position prev_HET prev_HET_range
+  
+  let prev_MSM random 10 * 10 / 100
+  set prev_MSM_index position prev_MSM prev_MSM_range
+ 
+
+let CD4diag_HET random 900  ;; check testing-frequency.nls to set-CD4-diagnosis ;; instead rand 6 
+
+ifelse CD4diag_HET < 500 ;; give us the position of CD4 that will be used later to calculate index of the state space
+[ifelse CD4diag_HET < 351
+  [ifelse CD4diag_HET < 201
+    [ifelse CD4diag_HET < 50
+      [set CD4diag_HET_index 0]
+      [set CD4diag_HET_index 1]]
+    [set CD4diag_HET_index 2]]
+  [set CD4diag_HET_index 3]]
+[set CD4diag_HET_index 4] 
+
+let CD4diag_MSM random 900
+
+ifelse CD4diag_MSM < 500
+[ifelse CD4diag_MSM < 351
+  [ifelse CD4diag_MSM < 201
+    [ifelse CD4diag_MSM < 50
+      [set CD4diag_MSM_index 0]
+      [set CD4diag_MSM_index 1]]
+    [set CD4diag_MSM_index 2]]
+  [set CD4diag_MSM_index 3]]
+[set CD4diag_MSM_index 4]
+  
+  let VLS_HET random 10 * 10 / 100
+  set VLS_HET_index position VLS_HET VLS_HET_range
+  
+  let VLS_MSM random 10 * 10 / 100
+  set VLS_MSM_index position VLS_MSM VLS_MSM_range
+  
+  let CurrentState (list (prev_HET) (prev_MSM) (CD4diag_HET) (CD4diag_MSM) (VLS_HET) (VLS_MSM)) 
+end
+
+;randomly select an action
+to initialAction
+  let VLS_action [40 45 50 55 60 65]
+  let unaware [10 15 20]
+  
+  let i random length VLS_action
+  let action-ARTsuppressed_HET item i VLS_action 
+  
+  let j random length VLS_action
+  let action-ARTsuppressed_MSM item j VLS_action
+  
+  let v random length unaware
+  let action-unaware_HET item v unaware
+  
+  let w random length unaware
+  let action-unaware_MSM item w unaware
+ 
+  let CurrentAction (list (action-ARTsuppressed_HET) (action-ARTsuppressed_MSM) (action-unaware_HET) (action-unaware_MSM))
+end
+
+to ImmediateReward
+  set ImmediateReward sum-QALYs * GDP - TOTAL-COSTS  ;; check if this is correct or it should be as CE
+end
+
+
+to getTransitionState
+ 
+  let StateSpaceStep 10
+  
+  let prev_HET (count people with [infected? = true and dead = 0 and (sex = 1 or sex = 2) and stage >= 3]) / num-MSM   ; HET-f HET-m ?? ;; paranthesis okay?
+  set prev_HET round (prev_HET / StateSpaceStep) * StateSpaceStep
+  
+  let prev_MSM (count people with [infected? = true and dead = 0 and sex = 3 and stage >= 3]) / num-MSM
+  set prev_MSM round (prev_MSM / StateSpaceStep) * StateSpaceStep
+  
+  let CD4diag_HET median [CD4-diagnosis] of people with [infected? = true and dead = 0 and (sex = 1 or sex = 2) and stage >= 3]
+  let CD4diag_MSM median [CD4-diagnosis] of people with [infected? = true and dead = 0 and sex = 3 and stage >= 3]
+  
+  
+  let VLS_HET count people with [infected? = true and dead = 0 and (sex = 1 or sex = 2) and stage = 6] / (count people with [infected? = true and dead = 0 and (sex = 1 or sex = 2) and stage >= 3]) 
+  set VLS_HET round (VLS_HET / StateSpaceStep) * StateSpaceStep
+  
+  let VLS_MSM count people with [infected? = true and dead = 0 and sex = 3 and stage = 6] / (count people with [infected? = true and dead = 0 and sex = 3 and stage >= 3])
+  set VLS_MSM round (VLS_MSM / StateSpaceStep) * StateSpaceStep
+  
+  let TransitionState (list (prev_HET) (prev_MSM) (CD4diag_HET) (CD4diag_MSM) (VLS_HET) (VLS_MSM)) 
+  
+end
+
